@@ -14,7 +14,7 @@ from pyner.model.nn.bilstm_crf import Model
 
 warnings.filterwarnings("ignore")
 
-# 主函数
+# 涓诲嚱鏁?
 def main(arch):
     logger = init_logger(log_name=arch, log_dir=config['log_dir'])
     logger.info("seed is %d"%args['seed'])
@@ -23,7 +23,7 @@ def main(arch):
                                     config['best_model_name'].format(arch = arch))
     device = 'cuda:%d' % config['n_gpus'][0] if len(config['n_gpus']) else 'cpu'
 
-    # 加载数据集
+    # 鍔犺浇鏁版嵁闆?
     logger.info('starting load test data from disk')
     data_transformer = DataTransformer(
                      vocab_path    = config['vocab_path'],
@@ -48,7 +48,7 @@ def main(arch):
                         max_sentence_length = config['max_length'],
                         device = device)
     test_iter = test_loader.make_iter()
-    # 初始化模型和优化器
+    # 鍒濆鍖栨ā鍨嬪拰浼樺寲鍣?
     logger.info("initializing model")
     bilstm = Model(num_classes      = config['num_classes'],
                    embedding_dim    = config['embedding_dim'],
@@ -56,7 +56,7 @@ def main(arch):
                    embedding_weight = embedding_weight,
                    vocab_size       = len(data_transformer.vocab),
                    device           = device)
-    # 初始化模型训练器
+    # 鍒濆鍖栨ā鍨嬭缁冨櫒
     logger.info('predicting model....')
     predicter = Predicter(model           = bilstm,
                           logger          = logger,
@@ -64,10 +64,10 @@ def main(arch):
                           test_data       = test_iter,
                           checkpoint_path = checkpoint_path,
                           label_to_id     = config['label_to_id'])
-    # 拟合模型
+    # 鎷熷悎妯″瀷
     predictions = predicter.predict()
     test_write(data = predictions,filename = config['result_path'],raw_text_path=config['raw_test_path'])
-    # 释放显存
+    # 閲婃斁鏄惧瓨
     if len(config['n_gpus']) > 0:
         torch.cuda.empty_cache()
 
