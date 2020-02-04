@@ -5,7 +5,7 @@ from .predict_utils import get_entity
 from ..train.train_utils import restore_checkpoint,model_device
 from ..train.trainer import batchify_with_label
 
-# 单个模型进行预测
+# 鍗曚釜妯″瀷杩涜棰勬祴
 class Predicter(object):
     def __init__(self,
                  model,
@@ -22,7 +22,7 @@ class Predicter(object):
         self.id_to_label     = {value:tag for tag,value in label_to_id.items()}
         self._reset()
 
-    # 重载模型
+    # 閲嶈浇妯″瀷
     def _reset(self):
         self.batch_num = len(self.test_data)
         self.model, self.device = model_device(n_gpu=self.n_gpu, model=self.model, logger=self.logger)
@@ -32,10 +32,13 @@ class Predicter(object):
             self.model = resume_list[0]
             self.logger.info("\nCheckpoint '{}' loaded".format(self.checkpoint_path))
 
-    # batch预测
-    def _predict_batch(self,inputs,length):
+    # batch棰勬祴
+    def _predict_batch(self,inputs,gaz,length):
         with torch.no_grad():
-            outputs = self.model(inputs,length)
+            if ('lattice' in self.model_name):
+                outputs = self.model(inputs, gaz, length)
+            else:
+                outputs = self.model(inputs,length)
             mask, _ = batchify_with_label(inputs=inputs, outputs=outputs,is_train_mode=False)
             _,predicts = self.model.crf(outputs, mask)
             batch_result = []
@@ -46,13 +49,13 @@ class Predicter(object):
                 batch_result.append(result)
             return batch_result
 
-    #预测test数据集
+    #棰勬祴test鏁版嵁闆?
     def predict(self):
         self.model.eval()
         predictions = []
-        for batch_idx,(inputs,_,length) in tqdm(enumerate(self.test_data),total=self.batch_num,desc='test_data'):
+        for batch_idx,(inputs,gaz,_,length) in tqdm(enumerate(self.test_data),total=self.batch_num,desc='test_data'):
             inputs   = inputs.to(self.device)
             length   = length.to(self.device)
-            y_pred_batch = self._predict_batch(inputs = inputs,length = length)
+            y_pred_batch = self._predict_batch(inputs = inputs,length = length, gaz = gaz)
             predictions.extend(y_pred_batch)
         return predictions
