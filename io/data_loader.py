@@ -125,10 +125,11 @@ class BatchWrapper(object):
             target = getattr(batch, self.y_var)
             source = x[0]
             length = x[1]
+            print("length",length)
             gaz_list = []
             gaz = []
-            text = source.numpy().tolist()
-            lens = length.numpy().tolist()
+            text = source.cpu().numpy().tolist()
+            lens = length.cpu().numpy().tolist()
             for i,sent in enumerate(text):
                 sent_len = lens[i]
                 for idx in range(sent_len):

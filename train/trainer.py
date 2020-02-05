@@ -3,6 +3,7 @@ import os
 import time
 import numpy as np
 import torch
+from torch.autograd import Variable
 from ..callback.progressbar import ProgressBar
 from ..utils.utils import AverageMeter
 from .train_utils import restore_checkpoint,model_device
@@ -95,7 +96,16 @@ class Trainer(object):
             'val_loss': round(val_loss,4)
         }
         return state
-
+        
+    def sequence_mask(self, sequence_length, max_len):   # sequence_length :(batch_size, )
+        batch_size = sequence_length.size(0)            # µÃµ½batch_size
+        seq_range = torch.arange(0, max_len).long()
+        seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len)
+        seq_range_expand = Variable(seq_range_expand)
+        if sequence_length.is_cuda:
+            seq_range_expand = seq_range_expand.cuda()
+        seq_length_expand = (sequence_length.unsqueeze(1).expand_as(seq_range_expand))
+        return seq_range_expand < seq_length_expand 
 
     def _valid_epoch(self):
         self.model.eval()
@@ -104,13 +114,18 @@ class Trainer(object):
         val_f1     = AverageMeter()
         self.val_entity_score._reset()
         with torch.no_grad():
-            for batch_idx, (inputs,target,length) in enumerate(self.val_data):
+            for batch_idx, (inputs,gaz,target,length) in enumerate(self.val_data):
+                if ('bert' in self.model_name):
+                    length = self.sequence_mask(length, config['max_length'])
                 inputs = inputs.to(self.device)
                 target = target.to(self.device)
                 length = length.to(self.device)
                 batch_size = inputs.size(0)
 
-                outputs = self.model(inputs, length)
+                if ('lattice' in self.model_name):
+                    outputs = self.model(inputs, gaz, length)
+                else:
+                    outputs = self.model(inputs,length)
                 mask,target = batchify_with_label(inputs = inputs,target = target,outputs = outputs)
                 loss = self.model.crf.neg_log_likelihood_loss(outputs, mask,target) #todo: now crf is merely an upper layer
                 if self.avg_batch_loss:
@@ -132,6 +147,8 @@ class Trainer(object):
             'val_f1': val_f1.avg
         }
 
+
+
     def _train_epoch(self):
         self.model.train()
         train_loss = AverageMeter()
@@ -140,6 +157,8 @@ class Trainer(object):
         self.train_entity_score._reset()
         for batch_idx, (inputs,gaz,target,length) in enumerate(self.train_data):
             start    = time.time()
+            if ('bert' in self.model_name):
+                length = self.sequence_mask(length, config['max_length'])
             inputs   = inputs.to(self.device)
             target   = target.to(self.device)
             length   = length.to(self.device)
@@ -148,6 +167,7 @@ class Trainer(object):
                 outputs = self.model(inputs, gaz, length)
             else:
                 outputs = self.model(inputs,length)
+
             mask, target = batchify_with_label(inputs=inputs, target=target, outputs=outputs)
             loss    = self.model.crf.neg_log_likelihood_loss(outputs,mask,target)
             if self.avg_batch_loss:
@@ -155,10 +175,10 @@ class Trainer(object):
 
             _,predicts = self.model.crf(outputs,mask)
             acc,f1 = self.evaluate(predicts,target)
-
-            self.optimizer.zero_grad()
             loss.backward()
+
             self.optimizer.step()
+            self.optimizer.zero_grad()
 
             train_loss.update(loss.item(),batch_size)
             train_acc.update(acc.item(),batch_size)

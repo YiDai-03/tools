@@ -5,14 +5,14 @@ import multiprocessing
 BASE_DIR = 'pyner'
 
 configs = {
-    'all_data_path': path.sep.join([BASE_DIR,'dataset/raw/source_BIO_2014_cropus.txt']),   # 总的数据，一般是将train和test何在一起构建语料库
-    'raw_train_path': path.sep.join([BASE_DIR,'dataset/raw/source_BIO_2014_cropus.txt']),  # 原始的训练数�?
-    'raw_target_path': path.sep.join([BASE_DIR,'dataset/raw/target_BIO_2014_cropus.txt']), #　原始的标签数�?
+    'all_data_path': path.sep.join([BASE_DIR,'dataset/raw/source_mini.txt']),   # 总的数据，一般是将train和test何在一起构建语料库
+    'raw_train_path': path.sep.join([BASE_DIR,'dataset/raw/source_mini.txt']),  # 原始的训练数�?
+    'raw_target_path': path.sep.join([BASE_DIR,'dataset/raw/target_mini.txt']), #　原始的标签数�?
     'raw_test_path': path.sep.join([BASE_DIR,'dataset/raw/test.txt']),           # 原始的test数据�?
 
-    'train_file_path': path.sep.join([BASE_DIR,'dataset/processed/train.json']), # 处理之后的训练数�?
-    'valid_file_path': path.sep.join([BASE_DIR,'dataset/processed/valid.json']),   #　valid数据
-    'test_file_path': path.sep.join([BASE_DIR,'dataset/processed/test.json']),   # test数据
+    'train_file_path': path.sep.join([BASE_DIR,'dataset/processed/train1.json']), # 处理之后的训练数�?
+    'valid_file_path': path.sep.join([BASE_DIR,'dataset/processed/valid1.json']),   #　valid数据
+    'test_file_path': path.sep.join([BASE_DIR,'dataset/processed/test1.json']),   # test数据
     'embedding_weight_path': path.sep.join([BASE_DIR, # 词向�?
                                             'output/embedding/sgns300']),
     'embedding_dict_path': path.sep.join([BASE_DIR, # character
@@ -69,14 +69,19 @@ configs = {
     },
     # 模型列表以及模型配置信息
     'models': {
-    
+    'bert_lstm':{'hidden_size': 200,
+                             'dropout_p':0.5,
+                             'dropout_emb':0.0,
+                             'num_layer': 1,
+                             'use_cuda':True,
+                             'crf':False},
     'lattice_lstm':{'hidden_size': 200,
                              'bi_tag': True,
                              'dropout_p':0.5,
                              'dropout_emb':0.0,
                              'num_layer': 1,
                              'use_cuda':True,
-                             'crf':True},
+                             'crf':False},
     'cnn_crf':{'hidden_size': 200,
                              'bi_tag': True,
                              'dropout_p':0.5,

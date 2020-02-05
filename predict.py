@@ -10,11 +10,14 @@ from pyner.utils.logginger import init_logger
 from pyner.utils.utils import seed_everything
 from pyner.test.predict_utils import test_write
 from pyner.config.basic_config import configs as config
-from pyner.model.nn.bilstm_crf import Model
+from pyner.model.nn.cnn import CNN
+from pyner.model.nn.bilstm_crf import BiLSTM
+from pyner.model.nn.latticelstm_crf import Lattice
+from pyner.model.nn.bert import BERT_LSTM
 
 warnings.filterwarnings("ignore")
 
-# 涓诲嚱鏁?
+# 主函�?
 def main(arch):
     logger = init_logger(log_name=arch, log_dir=config['log_dir'])
     logger.info("seed is %d"%args['seed'])
@@ -23,7 +26,7 @@ def main(arch):
                                     config['best_model_name'].format(arch = arch))
     device = 'cuda:%d' % config['n_gpus'][0] if len(config['n_gpus']) else 'cpu'
 
-    # 鍔犺浇鏁版嵁闆?
+    # 加载数据�?
     logger.info('starting load test data from disk')
     data_transformer = DataTransformer(
                      vocab_path    = config['vocab_path'],
@@ -37,37 +40,58 @@ def main(arch):
                                  x_var=config['x_var'],
                                  y_var=config['y_var']
                                  )
-    embedding_weight = data_transformer.build_embedding_matrix(embedding_path = config['embedding_weight_path'])
+    embedding_weight, words_embedding, gaz_tree = data_transformer.build_embedding_matrix(embedding_path = config['embedding_weight_path'], dict_path = config['embedding_dict_path'])
+    bs = args['batch_size']
+    if ('lattice' in arch):
+    	bs = 1
     test_loader = DataLoader(logger=logger,
                         is_train_mode=False,
                         x_var = config['x_var'],
                         y_var = config['y_var'],
                         skip_header = False,
                         data_path   = config['test_file_path'],
-                        batch_size  = args['batch_size'],
+                        batch_size  = bs,
                         max_sentence_length = config['max_length'],
+                        gaz         = gaz_tree,
                         device = device)
     test_iter = test_loader.make_iter()
-    # 鍒濆鍖栨ā鍨嬪拰浼樺寲鍣?
+    # 初始化模型和优化�?
     logger.info("initializing model")
-    bilstm = Model(num_classes      = config['num_classes'],
-                   embedding_dim    = config['embedding_dim'],
-                   model_config     = config['models'][arch],
-                   embedding_weight = embedding_weight,
-                   vocab_size       = len(data_transformer.vocab),
-                   device           = device)
-    # 鍒濆鍖栨ā鍨嬭缁冨櫒
+    if (arch == 'cnn_crf' or arch == 'cnn'):
+        model = CNN(num_classes      = config['num_classes'],
+                      embedding_dim    = config['embedding_dim'],
+                      model_config     = config['models'][arch],
+                      embedding_weight = embedding_weight,
+                      vocab_size       = len(data_transformer.vocab),
+                      device           = device)
+    elif (arch =='bilstm' or arch == 'bilstm_crf'):
+        model = BiLSTM(num_classes      = config['num_classes'],
+                      embedding_dim    = config['embedding_dim'],
+                      model_config     = config['models'][arch],
+                      embedding_weight = embedding_weight,
+                      vocab_size       = len(data_transformer.vocab),
+                      device           = device)    
+    elif (arch == 'lattice_lstm'):
+        model = Lattice(num_classes      = config['num_classes'],
+                      embedding_dim    = config['embedding_dim'],
+                      model_config     = config['models'][arch],
+                      embedding_weight = embedding_weight,
+                      vocab_size       = len(data_transformer.vocab),
+                      dict_size = len(data_transformer.word_vocab),
+                      pretrain_dict_embedding = words_embedding,
+                      device           = device)
+    # 初始化模型训练器
     logger.info('predicting model....')
-    predicter = Predicter(model           = bilstm,
+    predicter = Predicter(model           = model,
                           logger          = logger,
                           n_gpu           = config['n_gpus'],
                           test_data       = test_iter,
                           checkpoint_path = checkpoint_path,
                           label_to_id     = config['label_to_id'])
-    # 鎷熷悎妯″瀷
+    # 拟合模型
     predictions = predicter.predict()
     test_write(data = predictions,filename = config['result_path'],raw_text_path=config['raw_test_path'])
-    # 閲婃斁鏄惧瓨
+    # 释放显存
     if len(config['n_gpus']) > 0:
         torch.cuda.empty_cache()
 

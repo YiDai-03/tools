@@ -5,7 +5,7 @@ from .predict_utils import get_entity
 from ..train.train_utils import restore_checkpoint,model_device
 from ..train.trainer import batchify_with_label
 
-# 鍗曚釜妯″瀷杩涜棰勬祴
+# 单个模型进行预测
 class Predicter(object):
     def __init__(self,
                  model,
@@ -22,7 +22,7 @@ class Predicter(object):
         self.id_to_label     = {value:tag for tag,value in label_to_id.items()}
         self._reset()
 
-    # 閲嶈浇妯″瀷
+    # 重载模型
     def _reset(self):
         self.batch_num = len(self.test_data)
         self.model, self.device = model_device(n_gpu=self.n_gpu, model=self.model, logger=self.logger)
@@ -32,7 +32,7 @@ class Predicter(object):
             self.model = resume_list[0]
             self.logger.info("\nCheckpoint '{}' loaded".format(self.checkpoint_path))
 
-    # batch棰勬祴
+    # batch预测
     def _predict_batch(self,inputs,gaz,length):
         with torch.no_grad():
             if ('lattice' in self.model_name):
@@ -49,7 +49,7 @@ class Predicter(object):
                 batch_result.append(result)
             return batch_result
 
-    #棰勬祴test鏁版嵁闆?
+    #预测test数据�?
     def predict(self):
         self.model.eval()
         predictions = []

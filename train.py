@@ -15,6 +15,7 @@ from pyner.callback.lrscheduler import ReduceLROnPlateau
 from pyner.model.nn.cnn import CNN
 from pyner.model.nn.bilstm_crf import BiLSTM
 from pyner.model.nn.latticelstm_crf import Lattice
+from pyner.model.nn.bert import BERT_LSTM
 from pyner.callback.modelcheckpoint import ModelCheckpoint
 from pyner.callback.trainingmonitor import TrainingMonitor
 warnings.filterwarnings("ignore")
@@ -27,7 +28,7 @@ def main(arch):
     device = 'cuda:%d' % config['n_gpus'][0] if len(config['n_gpus']) else 'cpu'
 
     logger.info('starting load train data from disk')
-
+    default_tk = True if 'bert' in arch else False
 
     data_transformer = DataTransformer(logger        = logger,
                                        is_train_mode = True,
@@ -39,7 +40,9 @@ def main(arch):
                                        valid_file      = config['valid_file_path'],
                                        valid_size      = config['valid_size'],
                                        min_freq      = config['min_freq'],
-                                       seed          = args['seed'])
+                                       seed          = args['seed'],
+                                       default_token = default_tk)
+
 
     data_transformer.build_vocab()
 
@@ -73,7 +76,7 @@ def main(arch):
                             y_var         =config['y_var'],
                             skip_header   = False,
                             data_path     = config['valid_file_path'],
-                            batch_size    = config['batch_size'],
+                            batch_size    = bs,
                             max_sentence_length = config['max_length'],
                             gaz           = gaz_tree,
                             device = device)
@@ -106,6 +109,10 @@ def main(arch):
                       vocab_size       = len(data_transformer.vocab),
                       dict_size = len(data_transformer.word_vocab),
                       pretrain_dict_embedding = words_embedding,
+                      device           = device)
+    elif (arch == 'bert_lstm'):
+        model = BERT_LSTM(num_classes      = config['num_classes'],
+                      model_config     = config['models'][arch],
                       device           = device)
     optimizer = optim.Adam(params = model.parameters(),lr = config['learning_rate'],
                            weight_decay = config['weight_decay'])

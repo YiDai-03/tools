@@ -24,6 +24,7 @@ class DataTransformer(object):
                  valid_size = None,
                  skip_header = False,
                  is_train_mode = True,
+                 default_token = False,
                  seed=1024,
                  ):
 
@@ -41,6 +42,7 @@ class DataTransformer(object):
         self.max_features = max_features
         self.label_to_id = label_to_id
         self.is_train_mode = is_train_mode
+        self.default_token = default_token
 
 
     def _split_sent(self,line):
@@ -113,7 +115,10 @@ class DataTransformer(object):
                     label = self._split_sent(target)
                     if len(words) ==0 or len(label) ==0:
                         continue
-                    sent2id = [self._word_to_id(word=word, vocab=self.vocab) for word in words]
+                    if (self.default_token == False): 
+                        sent2id = [self._word_to_id(word=word, vocab=self.vocab) for word in words]
+                    else:
+                        sent2id = words # keep that for BERT
                     label = [self.label_to_id[x] for x in label]
                     sentences.append(sent2id)
                     labels.append(label)
