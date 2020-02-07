@@ -35,6 +35,7 @@ def get_entity(path,tag_map):
     results = []
     record = {}
     for index,tag_id in enumerate(path):
+        
         if tag_id == 0: # 0是我们的pad label
             continue
         tag = tag_map[tag_id]

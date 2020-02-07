@@ -4,6 +4,7 @@ from torchtext import data
 from ..utils.gazetteer import Gazetteer
 from ..config.basic_config import configs as config
 import numpy
+from transformers import BertTokenizer
 
 class CreateDataset(data.Dataset):
     def __init__(self,
@@ -42,13 +43,15 @@ class DataLoader(object):
                  data_path,
                  batch_size,
                  logger,
+                 vocab,
+                 rev_vocab,
                  x_var,
                  y_var,
                  gaz,
                  skip_header = False,
                  is_train_mode = True,
                  max_sentence_length = None,
-
+                 default_token = False,
                  device = 'cpu'
                  ):
 
@@ -56,18 +59,25 @@ class DataLoader(object):
         self.device           = device
         self.batch_size       = batch_size
         self.data_path        = data_path
+        self.vocab            = vocab
+        self.rev_vocab        = rev_vocab
         self.x_var            = x_var
         self.y_var            = y_var
         self.is_train_mode    = is_train_mode
         self.skip_header      = skip_header
         self.max_sentence_len = max_sentence_length
+        self.default_token = default_token 
         self.gaz = gaz
 
     def make_iter(self):
-
+        if (self.default_token):
+            t = BertTokenizer.from_pretrained('bert-base-chinese')
+            tokenizer = lambda x: t.convert_tokens_to_ids(x.split())
+        else:
+            tokenizer = lambda x: [int(c) for c in x.split()]
         TEXT = data.Field(sequential      = True,
                           use_vocab       = False,
-                          tokenize        = lambda x: [int(c) for c in x.split()],  
+                          tokenize        = tokenizer,
                           fix_length      = self.max_sentence_len, 
                           pad_token       = 0, 
                           batch_first     = True,
@@ -111,13 +121,15 @@ class DataLoader(object):
                                       sort = False,
                                       repeat = False,
                                       device = self.device)
-        return BatchWrapper(data_iter, self.gaz, self.batch_size, x_var=self.x_var, y_var=self.y_var)
+        return BatchWrapper(data_iter, self.rev_vocab, self.gaz, self.batch_size, x_var=self.x_var, y_var=self.y_var, default_token=self.default_token)
 
 class BatchWrapper(object):
-    def __init__(self, dl, gaz, batch_size, x_var, y_var):
+    def __init__(self, dl, rev_vocab, gaz, batch_size, x_var, y_var, default_token):
         self.dl, self.x_var, self.y_var = dl, x_var, y_var
         self.gaz = gaz
         self.batchsz = batch_size
+        self.rev_vocab = rev_vocab
+        self.default_token = default_token
 
     def __iter__(self):
         for batch in self.dl:
@@ -125,13 +137,15 @@ class BatchWrapper(object):
             target = getattr(batch, self.y_var)
             source = x[0]
             length = x[1]
-            print("length",length)
             gaz_list = []
             gaz = []
             text = source.cpu().numpy().tolist()
             lens = length.cpu().numpy().tolist()
+            origin = []
             for i,sent in enumerate(text):
                 sent_len = lens[i]
+
+                        
                 for idx in range(sent_len):
                     match_out = self.gaz.enumerateMatchList(sent[idx:sent_len])
                     if (len(match_out[0])==0):
@@ -140,6 +154,8 @@ class BatchWrapper(object):
                 while (len(gaz)<config['max_length']):
                     gaz.append([])
                 gaz_list.append(gaz)
+          #  if (self.default_token):
+               # source = origin
             yield (source, gaz_list, target, length)
     def __len__(self):
         return len(self.dl)

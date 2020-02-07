@@ -20,6 +20,7 @@ configs = {
     'glove_weight_path': path.sep.join([BASE_DIR, # word
                                             'output/embedding/glove_vectors_word.txt']),
     'vocab_path': path.sep.join([BASE_DIR,'dataset/processed/vocab.pkl']), # 语料数据
+    'rev_vocab_path': path.sep.join([BASE_DIR,'dataset/processed/rev_vocab.pkl']), 
     'result_path': path.sep.join([BASE_DIR, 'output/result/predict_result.txt']),# test预测结果
 
     'log_dir': path.sep.join([BASE_DIR, 'output/log']), # 模型运行日志
@@ -74,7 +75,7 @@ configs = {
                              'dropout_emb':0.0,
                              'num_layer': 1,
                              'use_cuda':True,
-                             'crf':False},
+                             'crf':True},
     'lattice_lstm':{'hidden_size': 200,
                              'bi_tag': True,
                              'dropout_p':0.5,

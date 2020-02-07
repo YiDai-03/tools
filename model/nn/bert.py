@@ -11,7 +11,10 @@ class BERT_LSTM(nn.Module):
         super(BERT_LSTM, self).__init__()
         self.tagset_size = num_classes     # num of tags for final softmax layer
 
-
+        if (model_config['crf'] == False):
+            classes = num_classes
+        else:
+            classes = num_classes + 2
         self.bert_encoder = BertModel.from_pretrained(bert_route)
 
 
@@ -21,7 +24,7 @@ class BERT_LSTM(nn.Module):
         self.lstm = nn.LSTM(self.bert_out_dim, model_config['hidden_size'] // 2, batch_first=True,
                             num_layers=num_layers, bidirectional=True)
         # map LSTM output to tag space
-        self.linear = nn.Linear(model_config['hidden_size'], self.tagset_size)
+        self.linear = nn.Linear(model_config['hidden_size'], classes)
         nn.init.xavier_uniform(self.linear.weight)
         self.crf = CRF(device = device,tagset_size=num_classes, have_crf = model_config['crf'])
 

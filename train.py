@@ -34,6 +34,7 @@ def main(arch):
                                        is_train_mode = True,
                                        all_data_path = config['all_data_path'],
                                        vocab_path    = config['vocab_path'],
+                                       rev_vocab_path    = config['rev_vocab_path'],
                                        max_features  = config['max_features'],
                                        label_to_id   = config['label_to_id'],
                                        train_file    = config['train_file_path'],
@@ -60,6 +61,8 @@ def main(arch):
         bs = 1
 
     train_loader = DataLoader(logger         = logger,
+                              vocab = data_transformer.vocab,
+                              rev_vocab = data_transformer.rev_vocab, 
                               is_train_mode  = True,
                               x_var          = config['x_var'],
                               y_var          = config['y_var'],
@@ -68,9 +71,12 @@ def main(arch):
                               batch_size     = bs,
                               max_sentence_length = config['max_length'],
                               gaz            = gaz_tree,
+                              default_token = default_tk,
                               device = device)
 
     val_loader = DataLoader(logger        = logger,
+                                  vocab = data_transformer.vocab,
+                              rev_vocab = data_transformer.rev_vocab, 
                             is_train_mode = True,
                             x_var         = config['x_var'],
                             y_var         =config['y_var'],

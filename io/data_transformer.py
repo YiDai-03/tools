@@ -13,6 +13,7 @@ class DataTransformer(object):
 
     def __init__(self,
                  vocab_path,
+                 rev_vocab_path,
                  logger,
                  max_features = None,
                  min_freq = 3,
@@ -37,6 +38,7 @@ class DataTransformer(object):
         self.test_file = test_file
         self.all_data_path = all_data_path
         self.vocab_path = vocab_path
+        self.rev_vocab_path = rev_vocab_path
         self.word_vocab = None
         self.skip_header = skip_header
         self.max_features = max_features
@@ -73,6 +75,7 @@ class DataTransformer(object):
     def build_vocab(self):
         if os.path.isfile(self.vocab_path):
             self.vocab = pkl_read(self.vocab_path)
+            self.rev_vocab = pkl_read(self.rev_vocab_path)
         else:
             count = Counter()
             with open(self.all_data_path, 'r') as fr:
@@ -99,6 +102,8 @@ class DataTransformer(object):
 
             pkl_write(data = word2id,filename=self.vocab_path)
             self.vocab = word2id
+            self.rev_vocab = {v : k for k, v in zip(all_words, range(0, len(all_words)))}
+            pkl_write(data = self.rev_vocab, filename=self.rev_vocab_path)
 
     def sentence2id(self,raw_data_path=None,raw_target_path  =None,x_var = None,y_var = None):
 
@@ -115,10 +120,11 @@ class DataTransformer(object):
                     label = self._split_sent(target)
                     if len(words) ==0 or len(label) ==0:
                         continue
-                    if (self.default_token == False): 
-                        sent2id = [self._word_to_id(word=word, vocab=self.vocab) for word in words]
+                    if (self.default_token):
+                        sent2id = words
                     else:
-                        sent2id = words # keep that for BERT
+                        sent2id = [self._word_to_id(word=word, vocab=self.vocab) for word in words]
+
                     label = [self.label_to_id[x] for x in label]
                     sentences.append(sent2id)
                     labels.append(label)
@@ -141,7 +147,12 @@ class DataTransformer(object):
                     words = self._split_sent(sent)
                     if len(words) ==0:
                         continue
-                    sent2id = [self._word_to_id(word=word, vocab=self.vocab) for word in words]
+
+                    if (self.default_token):
+                        sent2id = words
+                    else:
+                        sent2id = [self._word_to_id(word=word, vocab=self.vocab) for word in words]
+
                     label    = [-1 for _ in range(len(sent2id))]
                     sentences.append(sent2id)
                     labels.append(label)

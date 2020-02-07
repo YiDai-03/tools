@@ -17,7 +17,7 @@ from pyner.model.nn.bert import BERT_LSTM
 
 warnings.filterwarnings("ignore")
 
-# 主函�?
+
 def main(arch):
     logger = init_logger(log_name=arch, log_dir=config['log_dir'])
     logger.info("seed is %d"%args['seed'])
@@ -26,14 +26,18 @@ def main(arch):
                                     config['best_model_name'].format(arch = arch))
     device = 'cuda:%d' % config['n_gpus'][0] if len(config['n_gpus']) else 'cpu'
 
-    # 加载数据�?
+
     logger.info('starting load test data from disk')
+    default_tk = True if 'bert' in arch else False
     data_transformer = DataTransformer(
                      vocab_path    = config['vocab_path'],
+                     rev_vocab_path    = config['rev_vocab_path'],
+                      all_data_path = config['all_data_path'],
                      test_file     = config['test_file_path'],
                      logger        = logger,
                      skip_header   = False,
                      is_train_mode = False,
+                     default_token = default_tk,
                      seed          = args['seed'])
     data_transformer.build_vocab()
     data_transformer.sentence2id(raw_data_path = config['raw_test_path'],
@@ -46,6 +50,8 @@ def main(arch):
     	bs = 1
     test_loader = DataLoader(logger=logger,
                         is_train_mode=False,
+                                                      vocab = data_transformer.vocab,
+                              rev_vocab = data_transformer.rev_vocab, 
                         x_var = config['x_var'],
                         y_var = config['y_var'],
                         skip_header = False,
@@ -53,9 +59,10 @@ def main(arch):
                         batch_size  = bs,
                         max_sentence_length = config['max_length'],
                         gaz         = gaz_tree,
+                        default_token = default_tk,
                         device = device)
     test_iter = test_loader.make_iter()
-    # 初始化模型和优化�?
+
     logger.info("initializing model")
     if (arch == 'cnn_crf' or arch == 'cnn'):
         model = CNN(num_classes      = config['num_classes'],
@@ -80,18 +87,23 @@ def main(arch):
                       dict_size = len(data_transformer.word_vocab),
                       pretrain_dict_embedding = words_embedding,
                       device           = device)
-    # 初始化模型训练器
+    elif (arch == 'bert_lstm'):
+        model = BERT_LSTM(num_classes      = config['num_classes'],
+                      model_config     = config['models'][arch],
+                      device           = device)
+
     logger.info('predicting model....')
     predicter = Predicter(model           = model,
+                          model_name      = arch, 
                           logger          = logger,
                           n_gpu           = config['n_gpus'],
                           test_data       = test_iter,
                           checkpoint_path = checkpoint_path,
                           label_to_id     = config['label_to_id'])
-    # 拟合模型
+
     predictions = predicter.predict()
     test_write(data = predictions,filename = config['result_path'],raw_text_path=config['raw_test_path'])
-    # 释放显存
+
     if len(config['n_gpus']) > 0:
         torch.cuda.empty_cache()
 
